@@ -84,6 +84,26 @@ export class PeerConnection {
         return channel;
     }
 
+    sendBye() {
+        if (this.dataChannel === null) return console.log("No data channel");
+        this.dataChannel.send("BYE");
+        this.disconnect("LOCAL");
+    }
+
+    disconnect(orignator) {
+        this.dataChannel = null;
+        this.peerConnection.close();
+        this.peerConnection = this.createPeerConnection();
+        this.setState(`DISCONNECTED_${orignator}`);
+    }
+
+    setState(state) {
+        this.state = state;
+        this.options.onStateChange(state);
+    }
+
+
+
 
 
 
