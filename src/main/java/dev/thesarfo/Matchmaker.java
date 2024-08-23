@@ -48,5 +48,22 @@ public class Matchmaker {
             queue.add(new Exchange(user));
         }
     }
+    private static void pairingAbort(WsContext user) {
+        var exchange = findExchange(user);
+        if (exchange != null) {
+            send(exchange.otherUser(user), new Message("PARTNER_LEFT"));
+            queue.remove(exchange);
+        }
+    }
+
+    private static void pairingDone(WsContext user) {
+        var exchange = findExchange(user);
+        if (exchange != null) {
+            exchange.doneCount++;
+        }
+        queue.removeIf(ex -> ex.doneCount == 2);
+    }
+
+
 
 }
