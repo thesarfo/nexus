@@ -43,5 +43,48 @@ export class PeerConnection {
         return ws;
     }
 
+    createPeerConnection() { // RTCPeerConnection for exchanging media (with listeners for media and ICE)
+        let conn = new RTCPeerConnection();
+        conn.ontrack = event => {
+            console.log(`Received ${event.track.kind} track`);
+            this.options.onRemoteMedia(event.streams[0])
+        };
+        conn.onicecandidate = event => {
+            if (event.candidate === null) { // candidate gathering complete
+                console.log("ICE candidate gathering complete");
+                return this.sdpExchange.send(JSON.stringify({name: "PAIRING_DONE"}));
+            }
+            console.log("ICE candidate created, sending to partner");
+            let candidate = JSON.stringify(event.candidate);
+            this.sdpExchange.send(JSON.stringify({name: "SDP_ICE_CANDIDATE", data: candidate}))
+        };
+        conn.oniceconnectionstatechange = () => {
+            if (conn.iceConnectionState === "connected") {
+                this.setState("CONNECTED");
+                // ice candidates can still be added after "connected" state, so i need to log this with a delay
+                setTimeout(() => console.log("WebRTC connection established"), 500);
+            }
+        };
+        conn.ondatachannel = event => { // only for the "answerer" (the one who receives the SDP offer)
+            console.log("Received data channel from offerer");
+            this.dataChannel = this.setupDataChannel(event.channel)
+        };
+        return conn;
+    }
+
+    setupDataChannel(channel) { // RTCDataChannel for exchanging signaling and chat messages
+        channel.onmessage = event => {
+            console.log("Received data channel message", event.data);
+            if (event.data === "BYE") {
+                this.disconnect("REMOTE");
+                return console.log("Received BYE message, closing connection");
+            }
+            this.options.onChatMessage(JSON.parse(event.data).chat);
+        }
+        return channel;
+    }
+
+
+
 
 }
