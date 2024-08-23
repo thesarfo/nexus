@@ -1,4 +1,4 @@
-package io.javalin.omeglin;
+package dev.thesarfo;
 
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsConfig;
