@@ -64,6 +64,38 @@ public class Matchmaker {
         queue.removeIf(ex -> ex.doneCount == 2);
     }
 
+    private static Exchange findExchange(WsContext user) {
+        return queue.stream()
+                .filter(ex -> user.equals(ex.a) || user.equals(ex.b))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static void send(WsContext user, Message message) { // null safe send method
+        if (user != null) {
+            user.send(message);
+        }
+    }
+
+    record Message(String name, String data) {
+        public Message(String name) {
+            this(name, null);
+        }
+    }
+
+    static class Exchange {
+        public WsContext a;
+        public WsContext b;
+        public int doneCount = 0;
+
+        public Exchange(WsContext a) {
+            this.a = a;
+        }
+
+        public WsContext otherUser(WsContext user) {
+            return user.equals(a) ? b : a;
+        }
+    }
 
 
 }
