@@ -102,6 +102,53 @@ export class PeerConnection {
         this.options.onStateChange(state);
     }
 
+    handlePartnerFound(instructions) {
+        if (instructions !== "GO_FIRST") {
+            return console.log("Partner found, waiting for SDP offer ..."); // only for the "answerer" (the one who receives the SDP offer)
+        }
+        console.log("Partner found, creating SDP offer and data channel");
+        this.tryHandle("PARTNER_FOUND", async () => { // only for the "offerer" (the one who sends the SDP offer)
+            this.dataChannel = this.setupDataChannel(this.peerConnection.createDataChannel("data-channel"));
+            this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+            let offerJson = JSON.stringify(this.peerConnection.localDescription);
+            this.sdpExchange.send(JSON.stringify({name: "SDP_OFFER", data: offerJson}))
+        });
+    }
+
+    handleSdpOffer(offer) { // only for the "answerer" (the one who receives the SDP offer)
+        this.tryHandle("SDP_OFFER", async () => {
+            console.log("Received SDP offer, creating SDP answer")
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
+            let answerJson = JSON.stringify(this.peerConnection.localDescription);
+            this.sdpExchange.send(JSON.stringify({name: "SDP_ANSWER", data: answerJson}))
+        });
+    }
+
+    handleSdpAnswer(answer) { // only for the "offerer" (the one who sends the SDP offer)
+        this.tryHandle("SDP_ANSWER", async () => {
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+    }
+
+    handleIceCandidate(iceCandidate) {
+        this.tryHandle("ICE_CANDIDATE", async () => {
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(iceCandidate));
+        });
+    }
+
+    tryHandle(command, callback) {
+        try {
+            callback()
+        } catch (error) {
+            console.error(`Failed to handle ${command}`, error);
+        }
+    }
+
 
 
 
